@@ -394,4 +394,116 @@ If you’re testing your own site (with permission):
 CSRF was first widely documented in 2001 by Peter Watkins on the Bugtraq mailing list. It’s sometimes called a “one-click attack” because it can exploit a single unwitting action, like loading a malicious page.
 
 Let me know if you’d like examples, a deeper dive into a specific defense, or help testing for CSRF!
+Here’s a detailed rundown on **Insecure File Uploads**, a vulnerability that arises when a web application allows users to upload files without proper validation or restrictions. I’ll explain what it is, how it works, its impact, and how to prevent it.
+
+---
+
+### What are Insecure File Uploads?
+Insecure File Uploads occur when a web application permits users to upload files (e.g., images, documents) but fails to adequately validate, restrict, or sanitize them. This can allow attackers to upload malicious files—such as scripts, executables, or backdoors—that the server or users might execute, leading to serious security breaches.
+
+This vulnerability often stems from trusting user input too much or misconfiguring file-handling mechanisms.
+
+---
+
+### How Do Insecure File Uploads Work?
+Web applications commonly offer file upload features (e.g., profile pictures, resumes, attachments). If the system doesn’t enforce strict controls, attackers can exploit it by uploading harmful files.
+
+#### Example Scenario
+1. A site allows users to upload profile pictures but only checks the file extension (e.g., `.jpg`).
+2. An attacker uploads a file named `malware.php.jpg` containing PHP code:
+   ```php
+   <?php system("whoami"); ?>
+   ```
+3. The server accepts it because of the `.jpg` extension, but if it’s stored in an executable directory (e.g., `/uploads/`), the attacker can access it via `http://site.com/uploads/malware.php.jpg`.
+4. If the server interprets `.php` files, it executes the code, revealing the system user (or worse).
+
+#### Common Exploitation Techniques
+- **Executable Scripts**: Upload `.php`, `.asp`, or `.jsp` files disguised as harmless types (e.g., `image.php.jpg`).
+- **Malware**: Upload executables (e.g., `.exe`) that trick users or misconfigured servers into running them.
+- **Path Traversal**: Use filenames like `../../etc/passwd` to overwrite critical system files.
+- **MIME Type Spoofing**: Fake the `Content-Type` header (e.g., `image/jpeg`) while uploading a script.
+- **Double Extensions**: Exploit servers that mishandle files like `script.php;.jpg`.
+
+---
+
+### Impact of Insecure File Uploads
+The consequences depend on the system and attack, but they can include:
+- **Remote Code Execution (RCE)**: Running arbitrary commands on the server (e.g., installing a backdoor).
+- **Server Takeover**: Gaining full control if the uploaded file escalates privileges.
+- **Data Exposure**: Overwriting or accessing sensitive files (e.g., configuration files with database credentials).
+- **Malware Distribution**: Hosting malicious files for other users to download.
+- **Denial of Service (DoS)**: Uploading large files to exhaust storage or crash the server.
+
+A real-world example is the 2017 **Equifax breach**, where attackers exploited a related vulnerability (though not directly file uploads) to upload malicious code, exposing data of 147 million people.
+
+---
+
+### How Attackers Find Insecure File Uploads
+- **Manual Testing**: Upload files with dangerous extensions (`.php`, `.exe`) or altered headers and check if they’re accepted/executed.
+- **Burp Suite**: Intercept upload requests, modify filenames or content, and observe server responses.
+- **Fuzzing**: Try various file types, sizes, and names (e.g., `test.php%00.jpg`) to bypass filters.
+- **Directory Browsing**: Look for uploaded files in predictable locations (e.g., `/uploads/`).
+
+---
+
+### Prevention Techniques
+To secure file uploads, implement strict controls at every step:
+
+1. **Validate File Types**
+   - Check the file’s **MIME type** (e.g., `image/jpeg`) using server-side tools, not just extensions.
+   - Example in PHP:
+     ```php
+     $finfo = finfo_open(FILEINFO_MIME_TYPE);
+     $mime = finfo_file($finfo, $_FILES['upload']['tmp_name']);
+     if (!in_array($mime, ['image/jpeg', 'image/png'])) {
+         die("Invalid file type");
+     }
+     ```
+
+2. **Restrict Extensions**
+   - Use a whitelist of allowed extensions (e.g., `.jpg`, `.png`, `.pdf`) and reject all others.
+   - Avoid relying solely on extensions—combine with MIME checks.
+
+3. **Sanitize Filenames**
+   - Strip special characters (e.g., `../`, `;`, `%00`) and enforce a standard naming convention.
+   - Example: Rename uploads to a random string (e.g., `upload_12345.jpg`).
+
+4. **Store Files Outside Web Root**
+   - Save uploads in a non-executable directory (e.g., `/var/uploads/`) inaccessible via URL, then serve them via a script.
+   - Example: Use a PHP script to read and output files instead of direct access.
+
+5. **Disable Execution**
+   - Configure the server to disable script execution in upload directories:
+     - Apache: Add `php_flag engine off` in `.htaccess`.
+     - Nginx: Restrict `.php` execution with location rules.
+
+6. **Limit File Size**
+   - Set a maximum upload size (e.g., 2MB) to prevent DoS:
+     - PHP: `upload_max_filesize = 2M` in `php.ini`.
+
+7. **Scan Uploads**
+   - Use antivirus software (e.g., ClamAV) to scan files for malware before processing.
+
+8. **Content Validation**
+   - For images, verify they’re valid by opening them (e.g., `imagecreatefromjpeg()` in PHP) to catch disguised scripts.
+   - For other files, parse and validate structure (e.g., PDF headers).
+
+9. **Use Secure Permissions**
+   - Set uploaded files to non-executable permissions (e.g., `chmod 644`) and assign a low-privilege owner.
+
+---
+
+### Testing for Insecure File Uploads
+If you’re testing your own site (with permission):
+- **Manual Test**: Upload a `.php` file with `<?php echo "test"; ?>` and visit its URL to see if it executes.
+- **Burp Suite**: Modify upload requests (e.g., change `Content-Type` to `image/png` for a `.exe`).
+- **Fuzzing**: Try extensions like `.php3`, `.phtml`, or null bytes (e.g., `file.php%00.jpg`).
+- **Check Storage**: Look for uploaded files in `/uploads/` or similar directories.
+
+---
+
+### Fun Fact
+Insecure file uploads often pair with other vulnerabilities (e.g., Local File Inclusion) to devastating effect. A classic trick is uploading a file named `.htaccess` to override server settings!
+
+Let me know if you’d like a specific example, code snippet, or help testing this vulnerability!
 
