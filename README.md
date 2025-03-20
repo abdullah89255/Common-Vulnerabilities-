@@ -1,4 +1,11 @@
 # Common-Vulnerabilities-
+
+SQL Injection: Attackers manipulate database queries.
+Cross-Site Scripting (XSS): Malicious scripts are injected into web pages.
+Cross-Site Request Forgery (CSRF): Unauthorized actions are performed on behalf of a user.
+Insecure File Uploads: Allowing unsafe files to be uploaded.
+Broken Authentication: Weak login mechanisms.
+Security Misconfigurations: Improperly configured servers or software.
 Certainly! SQL Injection (SQLi) is one of the most common and dangerous vulnerabilities in web applications. It occurs when an attacker manipulates a website’s input fields to execute unintended SQL commands on the underlying database. Below, I’ll break down what it is, how it works, its impact, and how to prevent it.
 
 ---
