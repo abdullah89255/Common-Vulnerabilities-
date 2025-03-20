@@ -277,4 +277,121 @@ If you’re testing your own site (with permission):
 XSS got its name because it “crosses” from server-side data to client-side execution. It’s been a top vulnerability since the early 2000s, yet it persists due to sloppy input handling.
 
 Let me know if you want a deeper dive into a specific type, payload, or prevention method!
+Here’s a detailed explanation of Cross-Site Request Forgery (CSRF), another critical web vulnerability. I’ll cover what it is, how it works, its impact, and how to prevent it.
+
+---
+
+### What is Cross-Site Request Forgery (CSRF)?
+CSRF (often pronounced "sea-surf") is an attack that tricks a user’s browser into performing unintended actions on a trusted website where the user is authenticated. It exploits the trust that a site has in the user’s browser by sending forged requests, typically without the user’s knowledge.
+
+Unlike XSS, which injects scripts into a page, CSRF leverages the browser’s ability to send authenticated requests (e.g., via cookies) to a target site.
+
+---
+
+### How Does CSRF Work?
+Web applications often use cookies to maintain user sessions. Once logged in, the browser automatically includes these cookies with every request to the site. CSRF exploits this by tricking the browser into sending a malicious request to the target site.
+
+#### Example Scenario
+1. A user logs into their bank account at `bank.com`, and the browser stores an authentication cookie.
+2. While still logged in, the user visits a malicious site (e.g., `evil.com`).
+3. `evil.com` contains hidden code, like this:
+   ```html
+   <img src="http://bank.com/transfer?amount=1000&to=attacker">
+   ```
+4. The browser, seeing the `<img>` tag, sends a GET request to `bank.com` with the user’s cookie attached.
+5. If `bank.com` doesn’t verify the request’s origin, it processes the transfer, sending $1,000 to the attacker.
+
+The user doesn’t need to see the image or interact—merely loading the page triggers the request.
+
+#### Key Conditions for CSRF
+- The user must be authenticated to the target site (e.g., logged in).
+- The site relies on cookies or other automatic authentication tokens.
+- The site doesn’t validate the request’s legitimacy (e.g., via tokens or origin checks).
+
+#### Common Attack Vectors
+- **GET Requests**: Hidden in `<img>`, `<script>`, or `<iframe>` tags.
+- **POST Requests**: Submitted via a hidden form with auto-submitting JavaScript:
+  ```html
+  <form action="http://bank.com/transfer" method="POST" id="csrfForm">
+      <input type="hidden" name="amount" value="1000">
+      <input type="hidden" name="to" value="attacker">
+  </form>
+  <script>document.getElementById("csrfForm").submit();</script>
+  ```
+- **Social Engineering**: Links in emails or forums tricking users into visiting a malicious page.
+
+---
+
+### Impact of CSRF
+The consequences depend on the target site’s functionality but can include:
+- **Unauthorized Actions**: Transferring funds, changing passwords, or deleting accounts.
+- **Data Modification**: Updating user settings or posting content (e.g., a CSRF attack on a forum could post spam).
+- **Financial Loss**: As in the bank example, moving money to an attacker’s account.
+- **Reputation Damage**: Compromised accounts can erode trust in the site.
+
+A notable case is the 2008 **uTorrent CSRF vulnerability**, where attackers could remotely execute commands on a user’s system via a web interface.
+
+---
+
+### How Attackers Find CSRF Vulnerabilities
+- **Manual Testing**: Crafting requests (e.g., via browser dev tools or `curl`) to see if actions execute without extra validation.
+- **Automated Tools**: Tools like **Burp Suite** or **CSRF Tester** simulate requests and check for missing protections.
+- **Observation**: Identifying state-changing endpoints (e.g., `/update-profile`, `/transfer-funds`) that rely solely on cookies.
+
+---
+
+### Prevention Techniques
+To defend against CSRF, developers must ensure requests are intentional and authorized. Here’s how:
+
+1. **CSRF Tokens**
+   - Include a unique, unpredictable token in every state-changing request (e.g., forms, AJAX calls).
+   - Example in HTML:
+     ```html
+     <form action="/transfer" method="POST">
+         <input type="hidden" name="csrf_token" value="random123">
+         <input type="text" name="amount">
+         <input type="submit">
+     </form>
+     ```
+   - The server generates the token, stores it in the user’s session, and verifies it on submission. Attackers can’t guess it.
+
+2. **SameSite Cookie Attribute**
+   - Set cookies with `SameSite` to limit when they’re sent:
+     - `SameSite=Strict`: Cookies only sent for requests from the same site.
+     - `SameSite=Lax`: Allows some cross-site usage (e.g., top-level navigation) but blocks most CSRF vectors.
+     - Example: `Set-Cookie: session=xyz; SameSite=Strict`
+   - Supported by modern browsers (Chrome, Firefox, etc.).
+
+3. **Check Referer/Origin Headers**
+   - Validate the `Referer` or `Origin` HTTP header to ensure requests come from the trusted domain.
+   - Example: Reject requests if `Origin` isn’t `https://bank.com`.
+   - Note: These can be spoofed or missing in some cases, so they’re less reliable alone.
+
+4. **Require User Interaction**
+   - Add a CAPTCHA, password re-entry, or confirmation step for sensitive actions.
+   - Example: “Enter your password again to confirm this transfer.”
+
+5. **Avoid GET for State Changes**
+   - Use POST, PUT, or DELETE for actions that modify data, as GET requests are easier to forge via tags like `<img>`.
+
+6. **Custom Headers**
+   - Require a custom header (e.g., `X-CSRF-Token`) in AJAX requests. Browsers block cross-site scripts from setting custom headers.
+
+7. **Logout After Sensitive Actions**
+   - Expire sessions after critical operations to limit the window for CSRF.
+
+---
+
+### Testing for CSRF
+If you’re testing your own site (with permission):
+- **Manual Test**: Log in, then craft a request (e.g., via `<img>` or a form) to a state-changing endpoint and see if it succeeds without a token.
+- **Burp Suite**: Replay authenticated requests without tokens or with altered headers.
+- **Check Cookies**: Inspect if `SameSite` is set using browser dev tools.
+
+---
+
+### Fun Fact
+CSRF was first widely documented in 2001 by Peter Watkins on the Bugtraq mailing list. It’s sometimes called a “one-click attack” because it can exploit a single unwitting action, like loading a malicious page.
+
+Let me know if you’d like examples, a deeper dive into a specific defense, or help testing for CSRF!
 
